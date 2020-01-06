@@ -1,5 +1,5 @@
 [package]
-name = "platform-nrf52840"
+name = "nrf52840-platform"
 version = "0.1.0"
 authors = ["David Flemström <david.flemstrom@gmail.com>"]
 edition = "2018"

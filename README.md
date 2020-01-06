@@ -38,7 +38,7 @@ You can think about the intended stack like this:
 │            e.g. nrf52840-hal            │
 ├─────────────────────────────────────────┤
 │         Platform Implementation         │
-│          e.g. platform-nrf52840         │
+│          e.g. nrf52840-platform         │
 │ ┌─────────────────────────────────────┐ │
 │ │          Specific Product           │ │
 │ │         e.g. Particle Argon         │ │

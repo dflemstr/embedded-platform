@@ -16,6 +16,7 @@
 //! Some design trade-offs that have been made:
 //!
 //!   * `#![forbid(unsafe_code)]`; that belongs in `-pac` or `-hal` crates.
+//!   * Don't require `alloc`.
 //!   * Do some compatibility checks at runtime during startup instead of at compile time, for
 //!     example to check that a pin is used only once.  It turns out to be super tricky to do
 //!     granular ownership mapping of device registers at compile time (this has been done in
@@ -46,7 +47,7 @@
 //! │            e.g. nrf52840-hal            │
 //! ├─────────────────────────────────────────┤
 //! │         Platform Implementation         │
-//! │          e.g. platform-nrf52840         │
+//! │          e.g. nrf52840-platform         │
 //! │ ┌─────────────────────────────────────┐ │
 //! │ │          Specific Product           │ │
 //! │ │         e.g. Particle Argon         │ │
