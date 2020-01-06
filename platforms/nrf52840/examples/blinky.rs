@@ -27,10 +27,10 @@ fn main() -> ! {
     }
 }
 
-async fn run() -> Result<(), platform_nrf52840::error::Error> {
+async fn run() -> Result<(), nrf52840_platform::error::Error> {
     use embedded_platform::platform::PlatformExt;
 
-    let platform = platform_nrf52840::ParticleArgon::initialize().await?;
+    let platform = nrf52840_platform::ParticleArgon::initialize().await?;
 
     feather_blink(platform).await?;
 
