@@ -1,3 +1,4 @@
+//! Definitions for I²C peripherals.
 use crate::io;
 use core::fmt;
 use core::pin;
@@ -7,11 +8,17 @@ pub mod begin_read;
 pub mod begin_write;
 pub mod initialize;
 
-// TODO: this should capture the lifetime of self and let it flow into Self::Read
+/// A peripheral that can perform I²C read operations.
+// TODO: this should maybe capture the lifetime of self and let it flow into Self::Read
 pub trait I2cRead: fmt::Debug {
+    /// The common error type for I²C read operations.
+    ///
+    /// A single error type for all operations is enforced for simplicity.
     type Error;
-    type Read: io::Read;
+    /// An object that can be used to complete the read operation.
+    type Read: io::Read + Unpin;
 
+    /// Polls the start of a read operation to completion.
     fn poll_begin_read(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
@@ -19,8 +26,14 @@ pub trait I2cRead: fmt::Debug {
     ) -> task::Poll<Result<Self::Read, Self::Error>>;
 }
 
-// TODO: this should capture the lifetime of self and let it flow into Self::Read
+/// Extension functions for instances of [`I2cRead`].
+// TODO: this should maybe capture the lifetime of self and let it flow into Self::Read
 pub trait I2cReadExt: I2cRead {
+    /// Initiates a read operation on the specified address.
+    ///
+    /// The returned object can be used to read the actual data from the address.  The user must
+    /// read the data until completion, or else it might leave this I²C peripheral in an incomplete
+    /// state.
     fn begin_read(&mut self, address: u8) -> begin_read::BeginRead<Self>
     where
         Self: Unpin,
@@ -31,10 +44,16 @@ pub trait I2cReadExt: I2cRead {
 
 impl<'r, A> I2cReadExt for A where A: I2cRead {}
 
+/// A peripheral that can perform I²C write operations.
 pub trait I2cWrite: fmt::Debug {
+    /// The common error type for I²C write operations.
+    ///
+    /// A single error type for all operations is enforced for simplicity.
     type Error;
-    type Write: io::Write;
+    /// An object that can be used to complete the write operation.
+    type Write: io::Write + Unpin;
 
+    /// Polls the start of a write operation to completion.
     fn poll_begin_write(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
@@ -42,7 +61,14 @@ pub trait I2cWrite: fmt::Debug {
     ) -> task::Poll<Result<Self::Write, Self::Error>>;
 }
 
+/// Extension functions for instances of [`I2cWrite`].
 pub trait I2cWriteExt: I2cWrite {
+    /// Initiates a write operation on the specified address.
+    ///
+    /// The returned object can be used to write the actual data to the address.  The user must call
+    /// `shutdown` when done writing, or else it might leave this I²C peripheral in an incomplete
+    /// state.  For example, the I²C peripheral might decide to flush remaining data in the [`Drop`]
+    /// implementation, which will be blocking.
     fn begin_write(&mut self, address: u8) -> begin_write::BeginWrite<Self>
     where
         Self: Unpin,
@@ -53,10 +79,16 @@ pub trait I2cWriteExt: I2cWrite {
 
 impl<A> I2cWriteExt for A where A: I2cWrite {}
 
+/// Defines a mapping for two GPIO pins that can be used to create an I²C bus.
 pub trait I2cBusMapping<SDA, SCL> {
+    /// The common error type for I²C operations.
+    ///
+    /// A single error type for all operations is enforced for simplicity.
     type Error;
+    /// The I²C bus that will be produced once initialization based off of this mapping succeeds.
     type Bus: I2cRead<Error = Self::Error> + I2cWrite<Error = Self::Error>;
 
+    /// Polls the initialization operation to completion.
     fn poll_initialize(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
@@ -67,11 +99,13 @@ pub trait I2cBusMapping<SDA, SCL> {
         Self: Sized;
 }
 
+/// Extension functions for instances of [`I2cBusMapping`].
 pub trait I2cBusMappingExt<SDA, SCL>: I2cBusMapping<SDA, SCL>
 where
     SDA: Unpin,
     SCL: Unpin,
 {
+    /// Initializes a new I²C bus based off of the two provided SDA (data) and SCL (clock) pins.
     fn initialize(self, sda: SDA, scl: SCL) -> initialize::Initialize<Self, SDA, SCL>
     where
         Self: Sized + Unpin,

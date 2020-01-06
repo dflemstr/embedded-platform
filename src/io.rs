@@ -1,9 +1,17 @@
+//! Common IO primitives.
+//!
+//! These primitives are closely mirroring the definitions in
+//! [`tokio-io`](https://docs.rs/tokio-io).  A big difference is that these definitions are not tied
+//! to `std::io::Error`, but instead allow for custom error types, and also don't require
+//! allocation.
+
 use core::fmt;
 use core::pin;
 use core::task;
 
 pub mod read;
 pub mod read_exact;
+pub mod shutdown;
 pub mod write;
 pub mod write_all;
 
@@ -29,6 +37,11 @@ pub trait Write: fmt::Debug {
         cx: &mut task::Context<'_>,
         bytes: &[u8],
     ) -> task::Poll<Result<usize, Self::Error>>;
+
+    fn poll_shutdown(
+        self: pin::Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>>;
 }
 
 impl<A: ?Sized + Write + Unpin> Write for &mut A {
@@ -40,6 +53,13 @@ impl<A: ?Sized + Write + Unpin> Write for &mut A {
         bytes: &[u8],
     ) -> task::Poll<Result<usize, Self::Error>> {
         pin::Pin::new(&mut **self).poll_write(cx, bytes)
+    }
+
+    fn poll_shutdown(
+        mut self: pin::Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>> {
+        pin::Pin::new(&mut **self).poll_shutdown(cx)
     }
 }
 
@@ -78,6 +98,13 @@ pub trait WriteExt: Write {
         Self: Unpin,
     {
         write_all::write_all(self, bytes)
+    }
+
+    fn shutdown(&mut self) -> shutdown::Shutdown<Self>
+    where
+        Self: Unpin,
+    {
+        shutdown::shutdown(self)
     }
 }
 

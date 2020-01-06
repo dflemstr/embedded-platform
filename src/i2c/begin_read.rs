@@ -1,7 +1,9 @@
+//! Defines futures for initiating reads from an I²C peripheral.
 use core::future;
 use core::pin;
 use core::task;
 
+/// A future which initializes reads from an I²C peripheral.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct BeginRead<'a, A>
@@ -12,6 +14,9 @@ where
     address: u8,
 }
 
+/// Creates a new [`BeginRead`] for the provided I²C peripheral.
+///
+/// The read will access the specified address.
 pub fn begin_read<A>(reader: &mut A, address: u8) -> BeginRead<A>
 where
     A: super::I2cRead + Unpin + ?Sized,

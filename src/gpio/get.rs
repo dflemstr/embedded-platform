@@ -1,7 +1,9 @@
+//! Defines futures for getting the value off of a GPIO pin.
 use core::future;
 use core::pin;
 use core::task;
 
+/// A future which reads the value off a GPIO pin.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Get<'a, A>
@@ -11,6 +13,7 @@ where
     pin: &'a mut A,
 }
 
+/// Creates a new [`Get`] for the provided GPIO pin.
 pub fn get<A>(pin: &mut A) -> Get<A>
 where
     A: super::InputPin + Unpin + ?Sized,

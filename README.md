@@ -13,6 +13,7 @@ The ambition is that `embedded-platform` should be to `embedded-hal` what `tokio
 Some design trade-offs that have been made:
 
   * `#![forbid(unsafe_code)]`; that belongs in `-pac` or `-hal` crates.
+  * Don't require `alloc`.
   * Do some compatibility checks at runtime during startup instead of at compile time, for example to check that a pin
     is used only once.  It turns out to be super tricky to do granular ownership mapping of device registers at compile
     time (this has been done in [`drone-os`](https://www.drone-os.com/)), and instead we opt to do some checks at

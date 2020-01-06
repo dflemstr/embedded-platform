@@ -1,7 +1,9 @@
+//! Defines futures for initiating writes to an I²C peripheral.
 use core::future;
 use core::pin;
 use core::task;
 
+/// A future which initializes writes to an I²C peripheral.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct BeginWrite<'a, A>
@@ -12,6 +14,9 @@ where
     address: u8,
 }
 
+/// Creates a new [`BeginWrite`] for the provided I²C peripheral.
+///
+/// The write will access the specified address.
 pub fn begin_write<A>(writer: &mut A, address: u8) -> BeginWrite<A>
 where
     A: super::I2cWrite + Unpin + ?Sized,
