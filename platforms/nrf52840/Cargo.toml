@@ -14,7 +14,7 @@ edition = "2018"
 
 [dependencies]
 embedded-hal = "0.2.3"
-embedded-platform = { path = "../.." }
+embedded-platform = { version = "0.1.0", path = "../.." }
 nrf52840-hal = "0.8.1"
 
 [dev-dependencies]
