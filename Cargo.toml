@@ -1,5 +1,11 @@
 [package]
 name = "embedded-platform"
+description = "Holistic embedded device support in a batteries-included manner"
+documentation = "https://docs.rs/embedded-platform"
+repository = "https://github.com/dflemstr/embedded-platform"
+keywords = ["embedded", "platform", "io", "async"]
+license = "MIT OR Apache-2.0"
+categories = ["asynchronous", "embedded", "hardware-support", "no-std"]
 version = "0.1.0"
 authors = ["David Flemström <david.flemstrom@gmail.com>"]
 edition = "2018"
