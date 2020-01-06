@@ -66,7 +66,7 @@
 //! └─────────────────────────────────────────┘
 //! ```
 //!
-//! [embedded-hal]: https://crates.io/crates/embedded-hal
+//! [`embedded-hal`]: https://crates.io/crates/embedded-hal
 //! [Adafruit Feather spec]: https://learn.adafruit.com/adafruit-feather/feather-specification
 #![no_std]
 #![deny(
