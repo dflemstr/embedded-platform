@@ -44,9 +44,10 @@ where
     timer.start().await?;
     let mut ticks = timer.ticks();
 
-    loop {
+    while let Some(_) = ticks.try_next().await? {
         on = !on;
         main_led.set(on).await?;
-        ticks.try_next().await?;
     }
+
+    Ok(())
 }

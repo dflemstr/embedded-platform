@@ -1,2 +1,4 @@
 /target
+cmake-*
+CMake*
 Cargo.lock
