@@ -16,4 +16,7 @@ edition = "2018"
 futures = { version = "0.3.1", default-features = false, features = ["async-await"] }
 
 [workspace]
-members = ["platforms/nrf52840"]
+members = ["core", "platforms/nrf52840"]
+
+[features]
+rt = []

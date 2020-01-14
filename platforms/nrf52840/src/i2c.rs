@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::error;
 use crate::gpio;
 use core::pin;

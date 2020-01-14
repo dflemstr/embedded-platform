@@ -86,8 +86,10 @@ pub mod gpio;
 pub mod i2c;
 pub mod io;
 pub mod platform;
+pub mod prelude;
 pub mod specs;
 pub mod spi;
 pub mod time;
+pub mod timer;
 
 pub use platform::Platform;

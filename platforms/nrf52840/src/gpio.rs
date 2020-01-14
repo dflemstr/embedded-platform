@@ -6,7 +6,8 @@ use nrf52840_hal::gpio;
 use nrf52840_hal::gpio::p0;
 use nrf52840_hal::gpio::p1;
 
-pub struct Pin<P>(P)
+#[repr(transparent)]
+pub struct Pin<P>(pub(crate) P)
 where
     P: Unpin + ?Sized;
 
@@ -20,9 +21,7 @@ macro_rules! gpio {
 
         impl $mtyp {
             pub(crate) fn new(port: nrf52840_hal::nrf52840_pac::$mtyp) -> Self {
-                use gpio::GpioExt;
-
-                let port = port.split();
+                let port = $m::Parts::new(port);
 
                 Self {
                     $($name: Some(Pin(port.$name)),)*

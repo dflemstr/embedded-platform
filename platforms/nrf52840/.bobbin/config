@@ -1,0 +1,2 @@
+[builder]
+target = "thumbv7em-none-eabihf"

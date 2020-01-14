@@ -17,38 +17,36 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::missing_safety_doc)]
 
+use embedded_platform::prelude::*;
+use futures::prelude::*;
+
 use panic_halt as _;
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    // TODO: actually start an executor and call run()
-    loop {
-        core::sync::atomic::spin_loop_hint();
-    }
+    nrf52840_platform::ParticleArgon::main(|mut platform| async {
+        let timer = platform.take_timer0().into_periodic_timer(1.0.hz())?;
+        feather_blink(platform, timer).await?;
+        Ok(())
+    })
 }
 
-async fn run() -> Result<(), nrf52840_platform::error::Error> {
-    use embedded_platform::platform::PlatformExt;
-
-    let platform = nrf52840_platform::ParticleArgon::initialize().await?;
-
-    feather_blink(platform).await?;
-
-    Ok(())
-}
-
-async fn feather_blink<P>(mut feather: P) -> Result<(), P::Error>
+async fn feather_blink<P>(
+    mut feather: P,
+    mut timer: impl embedded_platform::timer::Timer<Error = P::Error> + Unpin,
+) -> Result<(), P::Error>
 where
     P: embedded_platform::specs::feather::Feather,
 {
-    use embedded_platform::gpio::IntoPushPullOutputPin;
-    use embedded_platform::gpio::OutputPinExt;
-
     let mut main_led = feather.take_main_led().into_push_pull_output_pin(false)?;
     let mut on = false;
+
+    timer.start().await?;
+    let mut ticks = timer.ticks();
 
     loop {
         on = !on;
         main_led.set(on).await?;
+        ticks.try_next().await?;
     }
 }

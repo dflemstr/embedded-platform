@@ -13,12 +13,20 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bare-metal = "0.2.5"
+core = { package = "embedded-platform-core", path = "../../core" }
+cortex-m = "0.6.1"
+cortex-m-rt = "0.6.11"
+direct-executor = "0.3.0"
 embedded-hal = "0.2.3"
 embedded-platform = { version = "0.1.0", path = "../.." }
-nrf52840-hal = "0.8.1"
+nrf52840-hal = { git = "https://github.com/nrf-rs/nrf52-hal.git", default-features = false }
 
 [dev-dependencies]
-core = { package = "core-futures-tls", version = "0.1.1" }
 cortex-m-rt = "0.6.11"
-futures = { version = "0.3.1", default-features = false, features = ["async-await"] }
+futures = { version = "0.3.1", default-features = false }
 panic-halt = "0.2.0"
+
+[features]
+default = ["rt"]
+rt = ["nrf52840-hal/rt"]

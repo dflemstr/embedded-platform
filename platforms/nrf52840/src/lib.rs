@@ -1,17 +1,19 @@
 #![no_std]
 #![deny(
-//missing_docs,
-missing_debug_implementations,
-missing_copy_implementations,
-trivial_casts,
-trivial_numeric_casts,
-unstable_features,
-unused_import_braces,
-unused_qualifications,
-clippy::all
+    // missing_docs,
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications,
+    clippy::all
 )]
-#![forbid(unsafe_code)]
+#![allow(clippy::missing_safety_doc)]
+// #![forbid(unsafe_code)]
 
+use core::future;
 use core::task;
 use embedded_platform::platform;
 use embedded_platform::specs;
@@ -19,6 +21,7 @@ use embedded_platform::specs;
 pub mod error;
 pub mod gpio;
 pub mod i2c;
+pub mod timer;
 
 use nrf52840_hal::gpio as hal_gpio;
 use nrf52840_hal::gpio::p0;
@@ -28,18 +31,82 @@ use nrf52840_hal::gpio::p1;
 pub struct ParticleArgon {
     p0: gpio::P0,
     p1: gpio::P1,
+    timers: timer::Timers,
 }
 
 impl platform::Platform for ParticleArgon {
     type Error = error::Error;
 
+    fn main<I, F>(run: I) -> !
+    where
+        I: FnOnce(Self) -> F,
+        F: future::Future<Output = Result<(), Self::Error>>,
+    {
+        let future = async {
+            use embedded_platform::platform::PlatformExt;
+            let platform = ParticleArgon::initialize().await.unwrap();
+            run(platform).await.unwrap();
+
+            loop {
+                cortex_m::asm::wfi();
+            }
+        };
+        let wait = cortex_m::asm::wfi;
+        direct_executor::run(future, wait)
+    }
+
     fn poll_initialize(_cx: &mut task::Context<'_>) -> task::Poll<Result<Self, Self::Error>> {
+        let mut core =
+            cortex_m::Peripherals::take().expect("A cortex_m platform was already initialized");
+
         let peripherals = nrf52840_hal::nrf52840_pac::Peripherals::take()
             .expect("A nrf52840 platform was already initialized");
+
         let p0 = gpio::P0::new(peripherals.P0);
         let p1 = gpio::P1::new(peripherals.P1);
 
-        task::Poll::Ready(Ok(Self { p0, p1 }))
+        let timers = timer::Timers::new(
+            peripherals.TIMER0,
+            peripherals.TIMER1,
+            peripherals.TIMER2,
+            peripherals.TIMER3,
+            peripherals.TIMER4,
+            &mut core.NVIC,
+        );
+
+        task::Poll::Ready(Ok(Self { p0, p1, timers }))
+    }
+}
+
+impl ParticleArgon {
+    pub fn take_timer0(
+        &mut self,
+    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER0>> {
+        self.timers.timer0.take().expect("timer 0 is already taken")
+    }
+
+    pub fn take_timer1(
+        &mut self,
+    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER1>> {
+        self.timers.timer1.take().expect("timer 1 is already taken")
+    }
+
+    pub fn take_timer2(
+        &mut self,
+    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER2>> {
+        self.timers.timer2.take().expect("timer 2 is already taken")
+    }
+
+    pub fn take_timer3(
+        &mut self,
+    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER3>> {
+        self.timers.timer3.take().expect("timer 3 is already taken")
+    }
+
+    pub fn take_timer4(
+        &mut self,
+    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER4>> {
+        self.timers.timer4.take().expect("timer 4 is already taken")
     }
 }
 
