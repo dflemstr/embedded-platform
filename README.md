@@ -19,7 +19,7 @@ Some design trade-offs that have been made:
     time (this has been done in [`drone-os`](https://www.drone-os.com/)), and instead we opt to do some checks at
     runtime (e.g. `Option::take`).  This wastes a dozen or so instructions at startup, which is a one-time cost.
   * All APIs are async-first, so that code won't have to block and we can be power efficient.  This does require an
-    executor, and one can be made that doesn't require `alloc`, yet to be written.
+    executor, and one can be made that doesn't require `alloc`.  I created one that works for cortex-m devices in [core](./core).
   * The crate uses its own HAL-like traits for e.g. `OutputPin` or `I2cRead` to enable async APIs as well as smooth
     over any incompatibilities between `embedded_hal::gpio::v1` and `embedded_hal::gpio::v2` etc.
   * All platform crates should be maintained in this repository so that changes like the last bullet point can be
