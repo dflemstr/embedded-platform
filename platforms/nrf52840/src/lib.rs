@@ -21,6 +21,7 @@ use embedded_platform::specs;
 pub mod error;
 pub mod gpio;
 pub mod i2c;
+pub mod serial;
 pub mod timer;
 
 use nrf52840_hal::gpio as hal_gpio;

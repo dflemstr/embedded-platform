@@ -94,7 +94,14 @@ impl embedded_platform::io::Write for I2cWrite {
         unimplemented!()
     }
 
-    fn poll_shutdown(
+    fn poll_flush(
+        self: pin::Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>> {
+        unimplemented!()
+    }
+
+    fn poll_close(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> task::Poll<Result<(), Self::Error>> {

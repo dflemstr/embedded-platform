@@ -87,6 +87,7 @@ pub mod i2c;
 pub mod io;
 pub mod platform;
 pub mod prelude;
+pub mod serial;
 pub mod specs;
 pub mod spi;
 pub mod time;

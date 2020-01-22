@@ -10,7 +10,7 @@ pub struct WriteAll<'a, A: ?Sized> {
     buffer: &'a [u8],
 }
 
-pub(crate) fn write_all<'a, A>(writer: &'a mut A, buffer: &'a [u8]) -> WriteAll<'a, A>
+pub fn write_all<'a, A>(writer: &'a mut A, buffer: &'a [u8]) -> WriteAll<'a, A>
 where
     A: super::Write + Unpin + ?Sized,
 {

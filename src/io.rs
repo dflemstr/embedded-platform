@@ -9,9 +9,10 @@ use core::fmt;
 use core::pin;
 use core::task;
 
+pub mod close;
+pub mod flush;
 pub mod read;
 pub mod read_exact;
-pub mod shutdown;
 pub mod write;
 pub mod write_all;
 
@@ -38,7 +39,12 @@ pub trait Write: fmt::Debug {
         bytes: &[u8],
     ) -> task::Poll<Result<usize, Self::Error>>;
 
-    fn poll_shutdown(
+    fn poll_flush(
+        self: pin::Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>>;
+
+    fn poll_close(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> task::Poll<Result<(), Self::Error>>;
@@ -55,11 +61,18 @@ impl<A: ?Sized + Write + Unpin> Write for &mut A {
         pin::Pin::new(&mut **self).poll_write(cx, bytes)
     }
 
-    fn poll_shutdown(
+    fn poll_flush(
         mut self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
     ) -> task::Poll<Result<(), Self::Error>> {
-        pin::Pin::new(&mut **self).poll_shutdown(cx)
+        pin::Pin::new(&mut **self).poll_flush(cx)
+    }
+
+    fn poll_close(
+        mut self: pin::Pin<&mut Self>,
+        cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>> {
+        pin::Pin::new(&mut **self).poll_close(cx)
     }
 }
 
@@ -100,12 +113,12 @@ pub trait WriteExt: Write {
         write_all::write_all(self, bytes)
     }
 
-    fn shutdown(&mut self) -> shutdown::Shutdown<Self>
+    fn shutdown(&mut self) -> close::Close<Self>
     where
         Self: Unpin,
     {
-        shutdown::shutdown(self)
+        close::close(self)
     }
 }
 
-impl<A> WriteExt for A where A: WriteExt {}
+impl<A> WriteExt for A where A: Write {}

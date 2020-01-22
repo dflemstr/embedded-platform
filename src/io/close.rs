@@ -4,18 +4,18 @@ use core::task;
 
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Shutdown<'a, A: ?Sized> {
+pub struct Close<'a, A: ?Sized> {
     writer: &'a mut A,
 }
 
-pub(crate) fn shutdown<A>(writer: &mut A) -> Shutdown<A>
+pub fn close<A>(writer: &mut A) -> Close<A>
 where
     A: super::Write + Unpin + ?Sized,
 {
-    Shutdown { writer }
+    Close { writer }
 }
 
-impl<A> future::Future for Shutdown<'_, A>
+impl<A> future::Future for Close<'_, A>
 where
     A: super::Write + Unpin + ?Sized,
 {
@@ -23,6 +23,6 @@ where
 
     fn poll(mut self: pin::Pin<&mut Self>, cx: &mut task::Context<'_>) -> task::Poll<Self::Output> {
         let this = &mut *self;
-        pin::Pin::new(&mut *this.writer).poll_shutdown(cx)
+        pin::Pin::new(&mut *this.writer).poll_close(cx)
     }
 }

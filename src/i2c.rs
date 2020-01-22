@@ -14,9 +14,9 @@ pub trait I2cRead: fmt::Debug {
     /// The common error type for I²C read operations.
     ///
     /// A single error type for all operations is enforced for simplicity.
-    type Error;
+    type Error: io::ReadError;
     /// An object that can be used to complete the read operation.
-    type Read: io::Read + Unpin;
+    type Read: io::Read<Error = Self::Error> + Unpin;
 
     /// Polls the start of a read operation to completion.
     fn poll_begin_read(
@@ -44,14 +44,38 @@ pub trait I2cReadExt: I2cRead {
 
 impl<'r, A> I2cReadExt for A where A: I2cRead {}
 
+pub async fn read<R>(i2c: &mut R, address: u8, dest: &mut [u8]) -> Result<usize, R::Error>
+where
+    R: I2cRead + Unpin,
+{
+    use crate::io::ReadExt;
+
+    let mut reader = i2c.begin_read(address).await?;
+    let size = reader.read(dest).await?;
+
+    Ok(size)
+}
+
+pub async fn read_exact<R>(i2c: &mut R, address: u8, dest: &mut [u8]) -> Result<(), R::Error>
+where
+    R: I2cRead + Unpin,
+{
+    use crate::io::ReadExt;
+
+    let mut reader = i2c.begin_read(address).await?;
+    reader.read_exact(dest).await?;
+
+    Ok(())
+}
+
 /// A peripheral that can perform I²C write operations.
 pub trait I2cWrite: fmt::Debug {
     /// The common error type for I²C write operations.
     ///
     /// A single error type for all operations is enforced for simplicity.
-    type Error;
+    type Error: io::WriteError;
     /// An object that can be used to complete the write operation.
-    type Write: io::Write + Unpin;
+    type Write: io::Write<Error = Self::Error> + Unpin;
 
     /// Polls the start of a write operation to completion.
     fn poll_begin_write(
@@ -79,12 +103,38 @@ pub trait I2cWriteExt: I2cWrite {
 
 impl<A> I2cWriteExt for A where A: I2cWrite {}
 
+pub async fn write<W>(i2c: &mut W, address: u8, data: &[u8]) -> Result<usize, W::Error>
+where
+    W: I2cWrite + Unpin,
+{
+    use crate::io::WriteExt;
+
+    let mut writer = i2c.begin_write(address).await?;
+    let size = writer.write(data).await?;
+    writer.shutdown().await?;
+
+    Ok(size)
+}
+
+pub async fn write_all<W>(i2c: &mut W, address: u8, data: &[u8]) -> Result<(), W::Error>
+where
+    W: I2cWrite + Unpin,
+{
+    use crate::io::WriteExt;
+
+    let mut writer = i2c.begin_write(address).await?;
+    writer.write_all(data).await?;
+    writer.shutdown().await?;
+
+    Ok(())
+}
+
 /// Defines a mapping for two GPIO pins that can be used to create an I²C bus.
 pub trait I2cBusMapping<SDA, SCL> {
     /// The common error type for I²C operations.
     ///
     /// A single error type for all operations is enforced for simplicity.
-    type Error;
+    type Error: io::ReadError + io::WriteError;
     /// The I²C bus that will be produced once initialization based off of this mapping succeeds.
     type Bus: I2cRead<Error = Self::Error> + I2cWrite<Error = Self::Error>;
 
