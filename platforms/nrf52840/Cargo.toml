@@ -20,7 +20,7 @@ cortex-m-rt = "0.6.11"
 direct-executor = "0.3.0"
 embedded-hal = "0.2.3"
 embedded-platform = { version = "0.1.0", path = "../.." }
-nrf52840-hal = { git = "https://github.com/nrf-rs/nrf52-hal.git", default-features = false }
+nrf52840-hal = { git = "https://github.com/dflemstr/nrf52-hal.git", branch = "async-spi", default-features = false }
 
 [dev-dependencies]
 cortex-m-rt = "0.6.11"

@@ -7,31 +7,37 @@ use core::pin;
 use core::task;
 use nrf52840_hal::target::interrupt;
 
-pub struct Timer<T>(u32, T)
-where
-    T: Unpin + ?Sized;
-
-#[derive(Debug)]
-pub(crate) struct Timers {
-    pub timer0: Option<Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER0>>>,
-    pub timer1: Option<Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER1>>>,
-    pub timer2: Option<Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER2>>>,
-    pub timer3: Option<Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER3>>>,
-    pub timer4: Option<Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER4>>>,
-}
-
-impl<T> Timer<T>
+pub struct Timer<T, M>
 where
     T: Unpin,
 {
-    fn new(raw: T) -> Self {
-        Self(1, raw)
+    ticks: u32,
+    raw: Option<nrf52840_hal::timer::Timer<T, M>>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Timers {
+    pub timer0: Option<Timer<nrf52840_hal::target::TIMER0, nrf52840_hal::timer::OneShot>>,
+    pub timer1: Option<Timer<nrf52840_hal::target::TIMER1, nrf52840_hal::timer::OneShot>>,
+    pub timer2: Option<Timer<nrf52840_hal::target::TIMER2, nrf52840_hal::timer::OneShot>>,
+    pub timer3: Option<Timer<nrf52840_hal::target::TIMER3, nrf52840_hal::timer::OneShot>>,
+    pub timer4: Option<Timer<nrf52840_hal::target::TIMER4, nrf52840_hal::timer::OneShot>>,
+}
+
+impl<T, M> Timer<T, M>
+where
+    T: Unpin,
+{
+    fn new(raw: nrf52840_hal::timer::Timer<T, M>) -> Self {
+        let ticks = 1;
+        let raw = Some(raw);
+        Self { ticks, raw }
     }
 }
 
-impl<T> fmt::Debug for Timer<T>
+impl<T, M> fmt::Debug for Timer<T, M>
 where
-    T: Unpin + ?Sized,
+    T: Unpin,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Timer").finish()
@@ -75,23 +81,28 @@ impl Timers {
     }
 }
 
-#[derive(Debug)]
-struct InterruptState {
-    triggered: bool,
-    waker: Option<task::Waker>,
+struct InterruptState<T> {
+    inner: Option<InnerInterruptState<T>>,
 }
 
-type InterruptStateCell = bare_metal::Mutex<cell::RefCell<InterruptState>>;
+struct InnerInterruptState<T> {
+    waker: task::Waker,
+    timer: InterruptTimer<T>,
+}
+
+enum InterruptTimer<T> {
+    Oneshot(nrf52840_hal::timer::Timer<T, nrf52840_hal::timer::OneShot>),
+    Periodic(nrf52840_hal::timer::Timer<T, nrf52840_hal::timer::Periodic>),
+}
+
+type InterruptStateCell<T> = bare_metal::Mutex<cell::RefCell<InterruptState<T>>>;
 
 macro_rules! timer {
     ($ty:ty, $interrupt:ident, $state:ident) => {
-        static $state: InterruptStateCell =
-            bare_metal::Mutex::new(cell::RefCell::new(InterruptState {
-                triggered: false,
-                waker: None,
-            }));
+        static $state: InterruptStateCell<$ty> =
+            bare_metal::Mutex::new(cell::RefCell::new(InterruptState { inner: None }));
 
-        impl<M> embedded_platform::timer::Timer for Timer<nrf52840_hal::timer::Timer<$ty, M>>
+        impl<M> embedded_platform::timer::Timer for Timer<$ty, M>
         where
             M: Unpin,
         {
@@ -104,7 +115,7 @@ macro_rules! timer {
                 use embedded_hal::timer::CountDown;
 
                 let this = &mut *self;
-                this.1.start(this.0);
+                this.raw.unwrap().start(this.ticks);
 
                 task::Poll::Ready(Ok(()))
             }
@@ -113,95 +124,81 @@ macro_rules! timer {
                 self: pin::Pin<&mut Self>,
                 cx: &mut task::Context<'_>,
             ) -> task::Poll<Result<(), Self::Error>> {
-                impl_poll_tick(cx, &$state)
+                impl_poll_tick(&mut *self, cx, &$state)
             }
         }
 
-        impl<M> embedded_platform::timer::IntoPeriodicTimer
-            for Timer<nrf52840_hal::timer::Timer<$ty, M>>
+        impl<M> embedded_platform::timer::IntoPeriodicTimer for Timer<$ty, M>
         where
             M: Unpin,
         {
-            type PeriodicTimer =
-                Timer<nrf52840_hal::timer::Timer<$ty, nrf52840_hal::timer::Periodic>>;
+            type PeriodicTimer = Timer<$ty, nrf52840_hal::timer::Periodic>;
 
             fn into_periodic_timer(
                 self,
                 rate: embedded_platform::time::Rate,
             ) -> Result<Self::PeriodicTimer, Self::Error> {
-                let result = self.1.into_periodic();
-                Ok(Timer(
-                    (nrf52840_hal::timer::Timer::<$ty, M>::TICKS_PER_SECOND as f32 / rate.as_hz())
-                        as u32,
-                    result,
-                ))
+                let ticks = (nrf52840_hal::timer::Timer::<$ty, M>::TICKS_PER_SECOND as f32
+                    / rate.as_hz()) as u32;
+                let raw = Some(self.raw.unwrap().into_periodic());
+                Ok(Timer { ticks, raw })
             }
         }
 
-        impl<M> embedded_platform::timer::IntoOneshotTimer
-            for Timer<nrf52840_hal::timer::Timer<$ty, M>>
+        impl<M> embedded_platform::timer::IntoOneshotTimer for Timer<$ty, M>
         where
             M: Unpin,
         {
-            type OneshotTimer =
-                Timer<nrf52840_hal::timer::Timer<$ty, nrf52840_hal::timer::OneShot>>;
+            type OneshotTimer = Timer<$ty, nrf52840_hal::timer::OneShot>;
 
             fn into_oneshot_timer(
                 self,
                 period: embedded_platform::time::Duration,
             ) -> Result<Self::OneshotTimer, Self::Error> {
-                let result = self.1.into_oneshot();
-                Ok(Timer(
-                    period.as_nanos() * nrf52840_hal::timer::Timer::<$ty, M>::TICKS_PER_SECOND
-                        / 1_000_000,
-                    result,
-                ))
+                let ticks = period.as_nanos()
+                    * nrf52840_hal::timer::Timer::<$ty, M>::TICKS_PER_SECOND
+                    / 1_000_000;
+                let raw = Some(self.raw.unwrap().into_oneshot());
+                Ok(Timer { ticks, raw })
             }
         }
 
         #[cfg(feature = "rt")]
         #[interrupt]
         fn $interrupt() {
-            interrupt_impl(
-                &$state,
-                nrf52840_hal::target::Interrupt::$interrupt,
-                || unsafe { (*<$ty>::ptr()).events_compare[0].write(|w| w) },
-            );
+            interrupt_impl(&$state, nrf52840_hal::target::Interrupt::$interrupt);
         }
     };
 }
 
-fn impl_poll_tick<E>(
+fn impl_poll_tick<T, M, E>(
+    this: &mut Timer<T, M>,
     cx: &mut task::Context,
-    state: &InterruptStateCell,
-) -> task::Poll<Result<(), E>> {
+    state: &InterruptStateCell<T>,
+) -> task::Poll<Result<(), E>>
+where
+    T: Unpin,
+{
     cortex_m::interrupt::free(|cs| {
         let mut state = state.borrow(cs).borrow_mut();
-        if state.triggered {
-            state.triggered = false;
+        if let Some(state) = state.inner.take() {
+            this.raw = Some(state.timer);
             task::Poll::Ready(Ok(()))
         } else {
-            state.waker = Some(cx.waker().clone());
+            state.inner = Some((this.raw.take().unwrap(), cx.waker().clone()));
             task::Poll::Pending
         }
     })
 }
 
-fn interrupt_impl(
-    state: &InterruptStateCell,
-    interrupt: nrf52840_hal::target::Interrupt,
-    clear: impl FnOnce(),
-) {
-    clear();
+fn interrupt_impl<T>(state: &InterruptStateCell<T>, interrupt: nrf52840_hal::target::Interrupt) {
     cortex_m::peripheral::NVIC::unpend(interrupt);
-
-    if let Some(waker) = cortex_m::interrupt::free(|cs| {
-        let mut state = state.borrow(cs).borrow_mut();
-        state.triggered = true;
-        state.waker.take()
-    }) {
-        waker.wake()
-    }
+    cortex_m::interrupt::free(|cs| {
+        if let Some((raw, waker)) = state.borrow(cs).borrow_mut().inner {
+            raw.wait().unwrap();
+            waker.wake();
+        }
+    });
 }
 
 timer!(nrf52840_hal::target::TIMER0, TIMER0, TIMER0_STATE);

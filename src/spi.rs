@@ -1,40 +1,48 @@
-use crate::io;
 use core::fmt;
 use core::pin;
 use core::task;
 
-pub trait SpiRead: fmt::Debug + Clone {
-    type Error: io::ReadError;
-    type Read: io::Read<Error = Self::Error> + Unpin;
+pub mod complete;
 
-    fn poll_begin_read_txn(
-        self: pin::Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> task::Poll<Result<Self::Read, Self::Error>>;
+pub trait Spi<'t, 'a>: fmt::Debug {
+    type Error;
+    type Transaction: SpiTransaction<'t, 'a, Error = Self::Error>;
+
+    fn transaction(&'t mut self) -> Self::Transaction;
 }
 
-pub trait SpiWrite: fmt::Debug + Clone {
-    type Error: io::WriteError;
-    type Write: io::Write<Error = Self::Error> + Unpin;
+pub trait SpiTransaction<'t, 'a>: fmt::Debug {
+    type Error;
+    type Transfer: SpiTransfer<'a, Error = Self::Error>;
+    type TransferSplit: SpiTransfer<'a, Error = Self::Error>;
 
-    fn poll_begin_write_txn(
-        self: pin::Pin<&mut Self>,
-        cx: &mut task::Context<'_>,
-    ) -> task::Poll<Result<Self::Write, Self::Error>>;
+    fn transfer(&'a mut self, buffer: &'a mut [u8]) -> Result<Self::Transfer, Self::Error>;
+
+    fn transfer_split(
+        &'a mut self,
+        tx_buffer: &'a [u8],
+        rx_buffer: &'a mut [u8],
+    ) -> Result<Self::TransferSplit, Self::Error>;
 }
 
-pub type SpiRWEnds<T> = (<T as SpiDuplex>::Read, <T as SpiDuplex>::Write);
-
-pub trait SpiDuplex: fmt::Debug + Clone {
-    type Error: io::ReadError + io::WriteError;
-    type Read: io::Read<Error = Self::Error> + Unpin;
-    type Write: io::Write<Error = Self::Error> + Unpin;
-
-    fn poll_begin_duplex_txn(
+pub trait SpiTransfer<'a> {
+    type Error;
+    fn poll_complete(
         self: pin::Pin<&mut Self>,
         cx: &mut task::Context<'_>,
-    ) -> task::Poll<Result<SpiRWEnds<Self>, Self::Error>>;
+    ) -> task::Poll<Result<(), Self::Error>>;
 }
+
+pub trait SpiTransferExt<'a>: SpiTransfer<'a> {
+    fn complete(&'a mut self) -> complete::Complete<'a, Self>
+    where
+        Self: Unpin,
+    {
+        complete::complete(self)
+    }
+}
+
+impl<'a, T> SpiTransferExt<'a> for T where T: SpiTransfer<'a> {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Polarity {

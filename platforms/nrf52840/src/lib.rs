@@ -22,6 +22,7 @@ pub mod error;
 pub mod gpio;
 pub mod i2c;
 pub mod serial;
+pub mod spi;
 pub mod timer;
 
 use nrf52840_hal::gpio as hal_gpio;
@@ -82,31 +83,31 @@ impl platform::Platform for ParticleArgon {
 impl ParticleArgon {
     pub fn take_timer0(
         &mut self,
-    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER0>> {
+    ) -> timer::Timer<nrf52840_hal::target::TIMER0, nrf52840_hal::timer::OneShot> {
         self.timers.timer0.take().expect("timer 0 is already taken")
     }
 
     pub fn take_timer1(
         &mut self,
-    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER1>> {
+    ) -> timer::Timer<nrf52840_hal::target::TIMER1, nrf52840_hal::timer::OneShot> {
         self.timers.timer1.take().expect("timer 1 is already taken")
     }
 
     pub fn take_timer2(
         &mut self,
-    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER2>> {
+    ) -> timer::Timer<nrf52840_hal::target::TIMER2, nrf52840_hal::timer::OneShot> {
         self.timers.timer2.take().expect("timer 2 is already taken")
     }
 
     pub fn take_timer3(
         &mut self,
-    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER3>> {
+    ) -> timer::Timer<nrf52840_hal::target::TIMER3, nrf52840_hal::timer::OneShot> {
         self.timers.timer3.take().expect("timer 3 is already taken")
     }
 
     pub fn take_timer4(
         &mut self,
-    ) -> timer::Timer<nrf52840_hal::timer::Timer<nrf52840_hal::target::TIMER4>> {
+    ) -> timer::Timer<nrf52840_hal::target::TIMER4, nrf52840_hal::timer::OneShot> {
         self.timers.timer4.take().expect("timer 4 is already taken")
     }
 }
